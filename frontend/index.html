@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fact Checker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Fact Checker</h1>
+        <div class="form-group">
+            <label for="claim">Enter the claim to fact-check:</label>
+            <input type="text" id="claim" placeholder="Enter claim here..." />
+        </div>
+        <button onclick="checkFact()">Check Fact</button>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        async function checkFact() {
+            const claim = document.getElementById("claim").value;
+            const resultElement = document.getElementById("result");
+
+            resultElement.innerHTML = '';
+            
+            if (!claim) {
+                resultElement.innerHTML = '<p class="error">Please enter a claim to check.</p>';
+                return;
+            }
+
+            try {
+                const res = await fetch('https://techfest25.onrender.com/fact-check', {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ claim })
+                });
+
+                const data = await res.json();
+                
+                if (res.ok) {
+                    resultElement.innerHTML = `
+                        <h3>Fact-check Result:</h3>
+                        <p><strong>Credibility Score:</strong> ${data.result}</p>
+                    `;
+                } else {
+                    resultElement.innerHTML = `<p class="error">${data.error || 'An error occurred while checking the claim.'}</p>`;
+                }
+            } catch (error) {
+                resultElement.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
