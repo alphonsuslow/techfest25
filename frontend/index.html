@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>AI Fact Checker</title>
+</head>
+<body>
+    <h1>AI Fact Checker</h1>
+    <input type="text" id="claim" placeholder="Enter a claim">
+    <button onclick="checkFact()">Check</button>
+    <p id="result"></p>
+
+    <script>
+        async function checkFact() {
+            const claim = document.getElementById("claim").value;
+            const res = await fetch('https://your-backend-url.onrender.com/fact-check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ claim })
+            });
+            const data = await res.json();
+            document.getElementById("result").innerText = data.result;
+        }
+    </script>
+</body>
+</html>
