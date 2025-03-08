@@ -16,15 +16,18 @@
         <button onclick="checkFact()">Check Fact</button>
         
         <div id="result" class="result"></div>
+        <div id="articles" class="articles"></div>
     </div>
 
     <script>
         async function checkFact() {
             const claim = document.getElementById("claim").value;
             const resultElement = document.getElementById("result");
+            const articlesElement = document.getElementById("articles");
 
             resultElement.innerHTML = '';
-            
+            articlesElement.innerHTML = '';
+
             if (!claim) {
                 resultElement.innerHTML = '<p class="error">Please enter a claim to check.</p>';
                 return;
@@ -46,6 +49,20 @@
                         <h3>Fact-check Result:</h3>
                         <p><strong>Credibility Score:</strong> ${data.result}</p>
                     `;
+                    
+                    if (data.articles && data.articles.length > 0) {
+                        articlesElement.innerHTML = `<h3>Related Articles:</h3>`;
+                        data.articles.forEach(article => {
+                            articlesElement.innerHTML += `
+                                <div class="article">
+                                    <h4><a href="${article.link}" target="_blank">${article.title}</a></h4>
+                                    <p>Date: ${article.date}</p>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        articlesElement.innerHTML = '<p>No related articles found.</p>';
+                    }
                 } else {
                     resultElement.innerHTML = `<p class="error">${data.error || 'An error occurred while checking the claim.'}</p>`;
                 }

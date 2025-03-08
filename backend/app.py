@@ -3,6 +3,7 @@ from flask_cors import CORS
 import openai
 from openai import OpenAI
 import os
+from scraper import *
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["POST", "OPTIONS"]}})
@@ -37,7 +38,13 @@ def fact_check():
         return jsonify({"error": "No claim provided"}), 400
 
     result = verify_claim(claim)
-    return jsonify({"result": result})
+    try:
+        articles = fetch_articles_moh()  # Call the scraper function to fetch articles
+    except Exception as e:
+        articles = {"error": f"Error fetching articles: {str(e)}"}
+
+    # Return fact-check result along with articles
+    return jsonify({"result": result, "articles": articles})
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000, debug=True)
