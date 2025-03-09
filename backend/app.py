@@ -4,7 +4,7 @@ import openai
 from openai import OpenAI
 import os
 from scraper import *
-import asyncio
+import concurrent.futures
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["POST", "OPTIONS"]}})
@@ -14,7 +14,6 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 claim_user_prompt = '''
 Analyse the claim and return a specific string that represents the category the claim is related to the closest.
 If the claim is related to culture, community and youth, return "MCCY".
-If the claim is related to national defence, return "DEF"
 If the claim is related to digital development and information, return "MDDI".
 If the claim is related to education, return "MOE".
 If the claim is related to finance, return "MOF".
@@ -61,12 +60,52 @@ def claim_categorisation(claim):
     response_msg = response.choices[0].message.content
     return response_msg
 
+def get_result_and_articles(claim):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_result = executor.submit(verify_claim, claim)
+        future_category = executor.submit(claim_categorisation, claim)
+
+        result = future_result.result()
+        category = future_category.result()
+
+        articles = []
+        if "MCCY" in category.upper():
+            articles = fetch_articles_mccy()
+        elif "MDDI" in category.upper():
+            articles = fetch_articles_mddi()
+        elif "MOE" in category.upper():
+            articles = fetch_articles_moe()
+        elif "MOF" in category.upper():
+            articles = fetch_articles_mof()
+        elif "MFA" in category.upper():
+            articles = fetch_articles_mfa()
+        elif "MOH" in category.upper():
+            articles = fetch_articles_moh()
+        elif "MHA" in category.upper():
+            articles = fetch_articles_mha()
+        elif "LAW" in category.upper():
+            articles = fetch_articles_law()
+        elif "MOM" in category.upper():
+            articles = fetch_articles_mom()
+        elif "MND" in category.upper():
+            articles = fetch_articles_mnd()
+        elif "MSF" in category.upper():
+            articles = fetch_articles_msf()
+        elif "MSE" in category.upper():
+            articles = fetch_articles_mse()
+        elif "MTI" in category.upper():
+            articles = fetch_articles_mti()
+        elif "MOT" in category.upper():
+            articles = fetch_articles_mot()
+        else:
+            articles = []
+
+    return result, articles
 
 @app.route('/fact-check', methods=['POST', 'OPTIONS'])
 def fact_check():
-    # Handle the preflight OPTIONS request
     if request.method == 'OPTIONS':
-        return '', 200  # Accept OPTIONS request
+        return '', 200
 
     data = request.json
     claim = data.get("claim", "")
@@ -74,43 +113,8 @@ def fact_check():
     if not claim:
         return jsonify({"error": "No claim provided"}), 400
 
-    result = verify_claim(claim)
-    category = claim_categorisation(claim)
+    result, articles = get_result_and_articles(claim)
 
-    if "MCCY" in category.upper():
-        articles = fetch_articles_mccy()
-    elif "MDDI" in category.upper():
-        articles = fetch_articles_mddi()
-    elif "DEF" in category.upper():
-        articles = asyncio.run(fetch_articles_def())
-    elif "MOE" in category.upper():
-        articles = fetch_articles_moe()
-    elif "MOF" in category.upper():
-        articles = fetch_articles_mof()
-    elif "MFA" in category.upper():
-        articles = fetch_articles_mfa()
-    elif "MOH" in category.upper():
-        articles = fetch_articles_moh()
-    elif "MHA" in category.upper():
-        articles = fetch_articles_mha()
-    elif "LAW" in category.upper():
-        articles = fetch_articles_law()
-    elif "MOM" in category.upper():
-        articles = fetch_articles_mom()
-    elif "MND" in category.upper():
-        articles = fetch_articles_mnd()
-    elif "MSF" in category.upper():
-        articles = asyncio.run(fetch_articles_msf())
-    elif "MSE" in category.upper():
-        articles = fetch_articles_mse()
-    elif "MTI" in category.upper():
-        articles = fetch_articles_mti()
-    elif "MOT" in category.upper():
-        articles = asyncio.run(fetch_articles_mot())
-    else:
-        articles = {}
-
-    # Return fact-check result along with articles
     return jsonify({"result": result, "articles": articles})
 
 if __name__ == '__main__':

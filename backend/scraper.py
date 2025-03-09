@@ -1,7 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
-import asyncio
-from playwright.async_api import async_playwright
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
 def fetch_articles_moh():
     url = "https://www.moh.gov.sg/newsroom/"
@@ -343,110 +347,113 @@ def fetch_articles_mti():
 
     return article_data
 
-async def fetch_articles_mot():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)  
-        page = await browser.new_page()
+def fetch_articles_mot():
+    options = Options()
+    options.add_argument("--headless")  # Run in headless mode (no GUI)
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
 
-        await page.goto("https://www.mot.gov.sg/news")
+    # Initialize the WebDriver
+    driver = webdriver.Chrome(options=options)
 
-        await page.wait_for_selector("div.news-card")
+    # Load the page
+    url = "https://www.mot.gov.sg/news"
+    driver.get(url)
 
-        content = await page.content()
+    try:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "news-result"))  # wait until the news result container is loaded
+        )
+    except:
+        print("Timed out waiting for page to load")
+        driver.quit()
+        return []
 
-        soup = BeautifulSoup(content, "html.parser")
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(3)
 
-        news_cards = soup.find_all("div", class_="news-card")
+    page_source = driver.page_source
 
-        articles = []
+    soup = BeautifulSoup(page_source, "html.parser")
 
-        for card in news_cards:
-            title = card.find("p", class_="news-title").get_text(strip=True)
-            link = card.find("a", class_="news-card-body")["href"]
-            date = card.find("span", class_="news-date").get_text(strip=True).split(" |")[0]
-            
-            if link.startswith("/"):
-                link = "https://www.mot.gov.sg/news/Details" + link
+    news_cards = soup.find_all("div", class_="news-card")
 
-            article = {
-                "title": title,
-                "link": link,
-                "date": date
-            }
-            articles.append(article)
+    article_data = []
+    for card in news_cards:
+        title_tag = card.find("p", class_="news-title")
+        if title_tag:
+            title = title_tag.text.strip()
+        else:
+            title = "No title found"
 
-        await browser.close()
+        link_tag = card.find("a", class_="news-card-body")
+        if link_tag and link_tag.get("href"):
+            href = link_tag["href"]
+        else:
+            href = "No link found"
 
-        return articles
+        if href.startswith("/"):
+            href = "https://www.mot.gov.sg" + href
+
+        date_tag = card.find("input", class_="publicationDate")
+        if date_tag and date_tag.get("value"):
+            date = date_tag["value"]
+        else:
+            date = "No date found"
+
+        article_data.append({
+            "title": title,
+            "link": href,
+            "date": date
+        })
+
+    driver.quit()
+
+    return article_data
     
-async def fetch_articles_msf():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
+def fetch_articles_msf():
+    options = Options()
+    options.add_argument("--headless")  # Run in headless mode (no GUI)
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
 
-        await page.goto("https://www.msf.gov.sg/media-room")
+    # Initialize the WebDriver
+    driver = webdriver.Chrome(options=options)
 
-        await page.wait_for_selector("div.col-12.col-lg-6")
+    # Load the page
+    url = "https://www.msf.gov.sg/media-room"
+    driver.get(url)
 
-        content = await page.content()
+    try:
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".col-12.col-lg-6"))
+        )
+    except:
+        print("Timed out waiting for news cards to load")
+        driver.quit()
+        return []
 
-        soup = BeautifulSoup(content, "html.parser")
+    page_source = driver.page_source
+    soup = BeautifulSoup(page_source, "html.parser")
 
-        news_cards = soup.find_all("div", class_="col-12 col-lg-6")
+    news_cards = soup.find_all("div", class_="col-12 col-lg-6")
 
-        articles = []
+    articles = []
 
-        for card in news_cards:
-            title_tag = card.find("a", class_="article-link")
-            title = title_tag.get_text(strip=True) if title_tag else None
+    for card in news_cards:
+        title_tag = card.find("a", class_="article-link")
+        title = title_tag.get_text(strip=True) if title_tag else None
 
-            link = title_tag["href"] if title_tag and "href" in title_tag.attrs else None
+        link = title_tag["href"] if title_tag and "href" in title_tag.attrs else None
 
-            date_tag = card.find("p", class_="card-update-text")
-            date = date_tag.get_text(strip=True).split("Published on:")[-1].strip() if date_tag else None
+        date_tag = card.find("p", class_="card-update-text")
+        date = date_tag.get_text(strip=True).split("Published on:")[-1].strip() if date_tag else None
 
-            article = {
-                "title": title,
-                "link": "https://www.msf.gov.sg" + link,
-                "date": date
-            }
-            articles.append(article)
+        article = {
+            "title": title,
+            "link": "https://www.msf.gov.sg" + link,
+            "date": date
+        }
+        articles.append(article)
 
-        await browser.close()
-
-        return articles
-    
-async def fetch_articles_def():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True) 
-        page = await browser.new_page()
-
-        await page.goto("https://www.mindef.gov.sg/news-and-events/latest-releases")
-
-        await page.wait_for_selector("div.col-xs-12.col-sm-4.content-container")
-
-        content = await page.content()
-
-        soup = BeautifulSoup(content, "html.parser")
-
-        news_cards = soup.find_all("a", class_="news-event-item-link")
-
-        articles = []
-
-        for card in news_cards:
-            title = card.find("div", class_="content-title").text.strip()
-            
-            href = card['href'] if 'href' in card.attrs else None
-            
-            date = card.find("span", class_="type-body-2").text.strip()[1:]
-            
-            articles.append({
-                "title": title,
-                "href": href,
-                "date": date
-            })
-
-
-        await browser.close()
-        
-        return articles
+    return articles
