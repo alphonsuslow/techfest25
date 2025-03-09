@@ -14,9 +14,9 @@
             <input type="text" id="claim" placeholder="Enter claim here..." />
         </div>
         <button onclick="checkFact()">Check Fact</button>
-        
         <div id="result" class="result"></div>
         <div id="articles" class="articles"></div>
+        <div id="spinner" class="spinner"></div>
     </div>
 
     <script>
@@ -27,9 +27,11 @@
 
             resultElement.innerHTML = '';
             articlesElement.innerHTML = '';
+            spinner.style.display = 'block'
 
             if (!claim) {
                 resultElement.innerHTML = '<p class="error">Please enter a claim to check.</p>';
+                spinner.style.display = 'none';
                 return;
             }
 
@@ -43,6 +45,8 @@
                 });
 
                 const data = await res.json();
+
+                spinner.style.display = 'none';
                 
                 if (res.ok) {
                     resultElement.innerHTML = `
@@ -68,6 +72,7 @@
                 }
             } catch (error) {
                 resultElement.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+                spinner.style.display = 'none';
             }
         }
     </script>

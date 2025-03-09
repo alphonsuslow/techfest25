@@ -3,6 +3,7 @@ from flask_cors import CORS
 import openai
 from openai import OpenAI
 import os
+import re
 from scraper import *
 import concurrent.futures
 
@@ -33,7 +34,7 @@ Only return one from the above, the one you feel is the most closely related to.
 def verify_claim(claim):
     context = [
         {"role": "system", "content": "You are an expert fact-checker."},
-        {"role": "user", "content": f"Fact-check the following claim and provide a credibility score (0-10) with reasoning:\n\n{claim}"},
+        {"role": "user", "content": f"Fact-check the following claim and explain its extent of credibility with reasoning:\n\n{claim}"},
           ]
     response = client.chat.completions.create(
 
@@ -43,7 +44,9 @@ def verify_claim(claim):
         temperature = 0)
     
     response_msg = response.choices[0].message.content
-    return response_msg
+
+    cleaned_msg = re.sub(r'\*\*(.*?)\*\*', r'\n\1', response_msg)
+    return cleaned_msg
 
 def claim_categorisation(claim):
     context = [
@@ -67,6 +70,7 @@ def get_result_and_articles(claim):
 
         result = future_result.result()
         category = future_category.result()
+        print(category)
 
         articles = []
         if "MCCY" in category.upper():
