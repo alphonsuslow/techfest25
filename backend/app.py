@@ -31,14 +31,28 @@ If the claim is related to transport, return "MOT".
 Only return one from the above, the one you feel is the most closely related to. Here is the claim: 
 '''
 
+def get_verdict(text):
+    match = re.search(r'(.+?[.!?])(\s|$)', text) 
+    if match:
+        first_sentence = match.group(1)
+        remaining_text = text[len(first_sentence):].lstrip()
+        return first_sentence, remaining_text
+    return "", text
+
 def verify_claim(claim):
+    user_prompt = '''
+    "Fact-check the following claim, return either one of Supported, Refuted, Conflicting Evidence/Cherrypicking or Not Enough Evidence in the first sentence, then explain why it is either Supported, Refuted, Conflicting Evidence/Cherrypicking or Not Enough Evidence.
+    Elaborate on the credibility of the claim with reasoning.
+    Example output: Refuted. The claim is untrue because it has been debunked by official sources that provided concrete evidence and supporting statements.
+    This is the claim you will be fact-checking:
+    '''
     context = [
         {"role": "system", "content": "You are an expert fact-checker."},
-        {"role": "user", "content": f"Fact-check the following claim and explain its extent of credibility with reasoning:\n\n{claim}"},
+        {"role": "user", "content": user_prompt + claim},
           ]
     response = client.chat.completions.create(
 
-        model = "gpt-4o-mini-2024-07-18",
+        model = "ft:gpt-4o-mini-2024-07-18:personal::B96n451M",
         messages = context,
         max_tokens = 500,
         temperature = 0)
@@ -46,7 +60,8 @@ def verify_claim(claim):
     response_msg = response.choices[0].message.content
 
     cleaned_msg = re.sub(r'\*\*(.*?)\*\*', r'\n\1', response_msg)
-    return cleaned_msg
+    verdict, explanation = get_verdict(cleaned_msg)
+    return explanation, verdict
 
 def claim_categorisation(claim):
     context = [
@@ -68,9 +83,8 @@ def get_result_and_articles(claim):
         future_result = executor.submit(verify_claim, claim)
         future_category = executor.submit(claim_categorisation, claim)
 
-        result = future_result.result()
+        result, verdict = future_result.result()
         category = future_category.result()
-        print(category)
 
         articles = []
         if "MCCY" in category.upper():
@@ -104,7 +118,7 @@ def get_result_and_articles(claim):
         else:
             articles = []
 
-    return result, articles
+    return result, verdict, articles
 
 @app.route('/fact-check', methods=['POST', 'OPTIONS'])
 def fact_check():
@@ -117,9 +131,9 @@ def fact_check():
     if not claim:
         return jsonify({"error": "No claim provided"}), 400
 
-    result, articles = get_result_and_articles(claim)
+    result, verdict, articles = get_result_and_articles(claim)
 
-    return jsonify({"result": result, "articles": articles})
+    return jsonify({"result": result, "verdict": verdict, "articles": articles})
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000, debug=True)

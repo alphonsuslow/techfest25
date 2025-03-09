@@ -51,7 +51,8 @@
                 if (res.ok) {
                     resultElement.innerHTML = `
                         <h3>Fact-check Result:</h3>
-                        <p><strong>Credibility Score:</strong> ${data.result}</p>
+                        <p><strong>Verdict:</strong> ${data.verdict}</p>
+                        <p><strong>Analysis of Claim:</strong> ${data.result}</p>
                     `;
                     
                     if (data.articles && data.articles.length > 0) {
